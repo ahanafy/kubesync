@@ -1,0 +1,20 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kubesync-deployment
+  namespace: default
+  labels:
+    app: kubesync
+spec:
+  selector:
+    matchLabels:
+      app: kubesync
+  template:
+    metadata:
+      labels:
+        app: kubesync
+    spec:
+      containers:
+      - name: kubesync
+        image: kubesync
+        imagePullPolicy: Never
