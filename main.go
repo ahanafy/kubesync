@@ -8,11 +8,9 @@ import (
 	"strings"
 	"time"
 
-	secretmanager "cloud.google.com/go/secretmanager/apiv1"
+	gcpapi "github.com/ahanafy/kubesync/internal"
+	kubernetes "github.com/ahanafy/kubesync/models"
 	"github.com/spf13/viper"
-	"google.golang.org/api/iterator"
-	"google.golang.org/api/option"
-	secretmanagerpb "google.golang.org/genproto/googleapis/cloud/secretmanager/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/watch"
@@ -20,18 +18,6 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 )
-
-type sealedSecretKeyPair struct {
-	name       string
-	namespace  string
-	publicKey  string
-	privateKey string
-	labels     map[string]string
-}
-
-type GCPCreds struct {
-	creds []byte
-}
 
 func main() {
 	env := "./config/config.yaml"
@@ -50,7 +36,9 @@ func main() {
 	if err != nil {
 		fmt.Println(err)
 	}
-	g := GCPCreds{creds}
+
+	g := new(gcpapi.GCPCreds)
+	g.Creds = creds
 
 	fmt.Println("ALL")
 	secretslist, errlist := g.ListSecrets(fmt.Sprintf("projects/%s", viper.GetString("GCP_PROJECT_ID")))
@@ -61,7 +49,7 @@ func main() {
 	}
 
 	for _, secret := range secretslist {
-		
+
 		result, err := g.AccessSecretVersion(fmt.Sprintf("%s/versions/latest", secret))
 		if err != nil {
 			fmt.Println(err)
@@ -140,7 +128,7 @@ func main() {
 	}
 }
 
-func changeEvent(item *corev1.Secret, event watch.Event, rc *rest.RESTClient) sealedSecretKeyPair {
+func changeEvent(item *corev1.Secret, event watch.Event, rc *rest.RESTClient) kubernetes.TLSSecret {
 	fmt.Printf("+ '%s' %v  ", item.GetName(), event.Type)
 	secret := &corev1.Secret{}
 	err := rc.Get().Resource(("secrets")).
@@ -153,77 +141,15 @@ func changeEvent(item *corev1.Secret, event watch.Event, rc *rest.RESTClient) se
 		fmt.Println(err)
 	}
 
-	sobject := sealedSecretKeyPair{
-		name:       secret.Name,
-		namespace:  secret.Namespace,
-		publicKey:  string(secret.Data["tls.crt"]),
-		privateKey: string(secret.Data["tls.key"]),
-		labels:     secret.Labels,
+	sobject := kubernetes.TLSSecret{
+		Secret: kubernetes.Secret{
+			Name:      secret.Name,
+			Namespace: secret.Namespace,
+			Labels:    secret.Labels,
+		},
+		PublicKey:  string(secret.Data["tls.crt"]),
+		PrivateKey: string(secret.Data["tls.key"]),
 	}
 
 	return sobject
-}
-
-// AccessSecretVersion returns the payload for the given secret version if one
-// exists.
-func (g GCPCreds) AccessSecretVersion(version string) ([]byte, error) {
-
-	// Create the client.
-	ctx := context.Background()
-	client, err := secretmanager.NewClient(ctx, option.WithCredentialsJSON(g.creds))
-	if err != nil {
-		return nil, fmt.Errorf("failed to create secretmanager client: %v", err)
-	}
-	defer client.Close()
-
-	// Build the request.
-	req := &secretmanagerpb.AccessSecretVersionRequest{
-		Name: version,
-	}
-
-	// Call the API.
-	result, err := client.AccessSecretVersion(ctx, req)
-	if err != nil {
-		return nil, fmt.Errorf("failed to access secret version: %v", err)
-	}
-
-	fmt.Printf("retrieved payload for: %s\n", result.Name)
-	return result.Payload.Data, nil
-}
-
-// ListSecrets retrieves the names of all secrets in the project,
-// given the `parent` (string).
-func (g GCPCreds) ListSecrets(parent string) (secrets []string, errors []error) {
-
-	// Create the client.
-	ctx := context.Background()
-	client, err := secretmanager.NewClient(ctx, option.WithCredentialsJSON(g.creds))
-	if err != nil {
-		return secrets, append(errors, err)
-	}
-	defer client.Close()
-
-	// Build the request.
-	req := &secretmanagerpb.ListSecretsRequest{
-		Parent: parent,
-	}
-
-	// Call the API.
-	it := client.ListSecrets(ctx, req)
-
-	for {
-		resp, err := it.Next()
-		if err == iterator.Done {
-			break
-		}
-
-		if err != nil {
-			errors = append(errors, err)
-			secrets = append(secrets, "")
-			continue
-		}
-		secrets = append(secrets, resp.Name)
-		errors = append(errors, nil)
-	}
-	return secrets, errors
 }
