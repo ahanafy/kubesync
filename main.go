@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -9,7 +10,6 @@ import (
 	"time"
 
 	gcpapi "github.com/ahanafy/kubesync/internal"
-	kubernetes "github.com/ahanafy/kubesync/models"
 	"github.com/spf13/viper"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -39,8 +39,7 @@ func main() {
 
 	g := new(gcpapi.GCPCreds)
 	g.Creds = creds
-
-	fmt.Println("ALL")
+	
 	secretslist, errlist := g.ListSecrets(fmt.Sprintf("projects/%s", viper.GetString("GCP_PROJECT_ID")))
 	for _, err := range errlist {
 		if err != nil {
@@ -85,8 +84,7 @@ func main() {
 	// utility function to create a int64 pointer
 	i64Ptr := func(i int64) *int64 { return &i }
 
-	value := "active"
-	labelSelector := fmt.Sprintf("sealedsecrets.bitnami.com/sealed-secrets-key=%s", value)
+	labelSelector := viper.GetString("LABEL")
 
 	opts := metav1.ListOptions{
 		TimeoutSeconds: i64Ptr(120),
@@ -106,6 +104,7 @@ func main() {
 
 	// here we iterate all the events streamed by the watch.Interface
 	for event := range watcher.ResultChan() {
+		var k8sObject *corev1.Secret
 		// retrieve the Secret
 		item := event.Object.(*corev1.Secret)
 
@@ -118,17 +117,23 @@ func main() {
 
 		// when a secret is added...
 		case watch.Added:
-			fmt.Println(changeEvent(item, event, rc))
-
+			k8sObject = changeEvent(item, event, rc)
 			fmt.Println(" ...Added!")
 		case watch.Modified:
-			fmt.Println(changeEvent(item, event, rc))
+			k8sObject = changeEvent(item, event, rc)
 			fmt.Println("...Modified!")
 		}
+
+		k, err := json.Marshal(k8sObject)
+		if err != nil {
+			fmt.Println(err)
+		}
+		fmt.Println(string(k))
+
 	}
 }
 
-func changeEvent(item *corev1.Secret, event watch.Event, rc *rest.RESTClient) kubernetes.TLSSecret {
+func changeEvent(item *corev1.Secret, event watch.Event, rc *rest.RESTClient) *corev1.Secret {
 	fmt.Printf("+ '%s' %v  ", item.GetName(), event.Type)
 	secret := &corev1.Secret{}
 	err := rc.Get().Resource(("secrets")).
@@ -141,15 +146,5 @@ func changeEvent(item *corev1.Secret, event watch.Event, rc *rest.RESTClient) ku
 		fmt.Println(err)
 	}
 
-	sobject := kubernetes.TLSSecret{
-		Secret: kubernetes.Secret{
-			Name:      secret.Name,
-			Namespace: secret.Namespace,
-			Labels:    secret.Labels,
-		},
-		PublicKey:  string(secret.Data["tls.crt"]),
-		PrivateKey: string(secret.Data["tls.key"]),
-	}
-
-	return sobject
+	return secret
 }
