@@ -128,7 +128,6 @@ func main() {
 			if err != nil {
 				fmt.Println(err)
 			}
-
 		// when a secret is modified...
 		case watch.Modified:
 			fmt.Println("...Modified!")
