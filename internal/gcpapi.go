@@ -77,3 +77,91 @@ func (g GCPCreds) ListSecrets(parent string) (secrets []string, errors []error) 
 	}
 	return secrets, errors
 }
+
+// CreateSecret creates a new secret in the Google Cloud Manager top-
+// level directory, specified as `parent`, using the `secretID` provided
+// as the name.
+func (g GCPCreds) CreateSecret(parent string, secretID string) (string, error) {
+
+	// Create the client.
+	ctx := context.Background()
+	client, err := secretmanager.NewClient(ctx, option.WithCredentialsJSON(g.Creds))
+	if err != nil {
+		// The most likely causes of the error are:
+		//     1 - google application creds failed
+		//     2 - secret already exists
+		return "", fmt.Errorf("failed to create secretmanager client: %v", err)
+	}
+	defer client.Close()
+
+	// Build the request.
+	req := &secretmanagerpb.CreateSecretRequest{
+		Parent:   parent,
+		SecretId: secretID,
+		Secret: &secretmanagerpb.Secret{
+			Replication: &secretmanagerpb.Replication{
+				Replication: &secretmanagerpb.Replication_Automatic_{
+					Automatic: &secretmanagerpb.Replication_Automatic{},
+				},
+			},
+		},
+	}
+
+	// Call the API.
+	result, err := client.CreateSecret(ctx, req)
+	if err != nil {
+
+		return "", err
+	}
+	fmt.Printf("created secret: %s\n", result.Name)
+	return result.Name, nil
+}
+
+// AddSecretVersion adds a new secret version to the given secret path with the
+// provided payload.
+func (g GCPCreds) AddSecretVersion(path string, payload []byte) (string, error) {
+
+	// Create the client.
+	ctx := context.Background()
+	client, err := secretmanager.NewClient(ctx, option.WithCredentialsJSON(g.Creds))
+	if err != nil {
+		return "", fmt.Errorf("failed to create secretmanager client: %v", err)
+	}
+	defer client.Close()
+
+	// Build the request.
+	req := &secretmanagerpb.AddSecretVersionRequest{
+		Parent: path,
+		Payload: &secretmanagerpb.SecretPayload{
+			Data: payload,
+		},
+	}
+
+	// Call the API.
+	result, err := client.AddSecretVersion(ctx, req)
+	if err != nil {
+		return "", fmt.Errorf("failed to add secret version: %v", err)
+	}
+
+	fmt.Printf("added secret version: %s\n", result.Name)
+	return result.Name, nil
+}
+
+func (g GCPCreds) WriteSecret(projectID string, secretName string) error {
+
+	// Create GCP secret phase
+	gcpSecretName, err := g.CreateSecret(fmt.Sprintf("projects/%s", projectID), secretName)
+	if err != nil {
+		return err
+	}
+
+	// Input data.
+	text := "{\"Bird\":10,\"Cat\":\"Fuzzy\"}"
+	bytes := []byte(text)
+	versionResponse, err := g.AddSecretVersion(gcpSecretName, bytes)
+	if err != nil {
+		return err
+	}
+	fmt.Println(versionResponse)
+	return nil
+}

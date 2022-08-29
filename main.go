@@ -31,6 +31,8 @@ func main() {
 		fmt.Println(err)
 	}
 
+	var projectID = viper.GetString("GCP_PROJECT_ID")
+
 	creds, err := ioutil.ReadFile(viper.GetString("GOOGLE_APPLICATION_CREDENTIALS"))
 
 	if err != nil {
@@ -39,8 +41,9 @@ func main() {
 
 	g := new(gcpapi.GCPCreds)
 	g.Creds = creds
-	
-	secretslist, errlist := g.ListSecrets(fmt.Sprintf("projects/%s", viper.GetString("GCP_PROJECT_ID")))
+
+	// Get all GCP secrets phase
+	secretslist, errlist := g.ListSecrets(fmt.Sprintf("projects/%s", projectID))
 	for _, err := range errlist {
 		if err != nil {
 			fmt.Println(err)
@@ -55,6 +58,20 @@ func main() {
 		}
 		fmt.Println(string(result))
 	}
+
+	secretNames := []string{"secretID"}
+
+	for _, secretname := range secretNames {
+		err := g.WriteSecret(projectID, secretname)
+		if err != nil {
+			fmt.Println(err)
+			fmt.Printf("Coudln't create: %s\n", secretname)
+		} else {
+			fmt.Printf("Created: %s\n", secretname)
+		}
+
+	}
+	// Kubernetes access phase
 
 	// Using the default configuration rules get the info
 	// to connect to the Kubernetes cluster
