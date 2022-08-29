@@ -110,6 +110,7 @@ func main() {
 	// here we iterate all the events streamed by the watch.Interface
 	for event := range watcher.ResultChan() {
 		var k8sObject *corev1.Secret
+		var k []byte = nil
 		// retrieve the Secret
 		item := event.Object.(*corev1.Secret)
 
@@ -117,33 +118,46 @@ func main() {
 
 		// when a secret is deleted...
 		case watch.Deleted:
-			// let's say hello!
 			fmt.Printf("- '%s' %v ...Deleted\n", item.GetName(), event.Type)
-
 		// when a secret is added...
 		case watch.Added:
-			k8sObject = changeEvent(item, event, rc)
 			fmt.Println(" ...Added!")
-		case watch.Modified:
 			k8sObject = changeEvent(item, event, rc)
+
+			k, err = marshalK8s(k8sObject)
+			if err != nil {
+				fmt.Println(err)
+			}
+
+		// when a secret is modified...
+		case watch.Modified:
 			fmt.Println("...Modified!")
+			k8sObject = changeEvent(item, event, rc)
+			k, err = marshalK8s(k8sObject)
+			if err != nil {
+				fmt.Println(err)
+			}
 		}
-
-		k, err := json.Marshal(k8sObject)
-		if err != nil {
-			fmt.Println(err)
-		}
-		fmt.Println(string(k))
-
-		err = g.WriteSecret(projectID, k8sObject.Name, k)
-		if err != nil {
-			fmt.Println(err)
-			fmt.Printf("Coudln't create: %s\n", k8sObject.Name)
-		} else {
-			fmt.Printf("Created: %s\n", k8sObject.Name)
+		if k != nil {
+			err = g.WriteSecret(projectID, k8sObject.Name, k)
+			if err != nil {
+				fmt.Println(err)
+				fmt.Printf("Coudln't create: %s\n", k8sObject.Name)
+			} else {
+				fmt.Printf("Created: %s\n", k8sObject.Name)
+			}
 		}
 
 	}
+}
+
+func marshalK8s(k8sObject *corev1.Secret) ([]byte, error) {
+	k, err := json.Marshal(k8sObject)
+	if err != nil {
+		fmt.Println(err)
+	}
+	fmt.Println(string(k))
+	return k, err
 }
 
 func changeEvent(item *corev1.Secret, event watch.Event, rc *rest.RESTClient) *corev1.Secret {
