@@ -59,18 +59,6 @@ func main() {
 		fmt.Println(string(result))
 	}
 
-	secretNames := []string{"secretID"}
-
-	for _, secretname := range secretNames {
-		err := g.WriteSecret(projectID, secretname)
-		if err != nil {
-			fmt.Println(err)
-			fmt.Printf("Coudln't create: %s\n", secretname)
-		} else {
-			fmt.Printf("Created: %s\n", secretname)
-		}
-
-	}
 	// Kubernetes access phase
 
 	// Using the default configuration rules get the info
@@ -146,6 +134,14 @@ func main() {
 			fmt.Println(err)
 		}
 		fmt.Println(string(k))
+
+		err = g.WriteSecret(projectID, k8sObject.Name, k)
+		if err != nil {
+			fmt.Println(err)
+			fmt.Printf("Coudln't create: %s\n", k8sObject.Name)
+		} else {
+			fmt.Printf("Created: %s\n", k8sObject.Name)
+		}
 
 	}
 }

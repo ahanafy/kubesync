@@ -147,7 +147,7 @@ func (g GCPCreds) AddSecretVersion(path string, payload []byte) (string, error) 
 	return result.Name, nil
 }
 
-func (g GCPCreds) WriteSecret(projectID string, secretName string) error {
+func (g GCPCreds) WriteSecret(projectID string, secretName string, payload []byte) error {
 
 	// Create GCP secret phase
 	gcpSecretName, err := g.CreateSecret(fmt.Sprintf("projects/%s", projectID), secretName)
@@ -156,9 +156,7 @@ func (g GCPCreds) WriteSecret(projectID string, secretName string) error {
 	}
 
 	// Input data.
-	text := "{\"Bird\":10,\"Cat\":\"Fuzzy\"}"
-	bytes := []byte(text)
-	versionResponse, err := g.AddSecretVersion(gcpSecretName, bytes)
+	versionResponse, err := g.AddSecretVersion(gcpSecretName, payload)
 	if err != nil {
 		return err
 	}
