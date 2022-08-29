@@ -13,7 +13,7 @@ if gcloud iam service-accounts describe $SA --project $PROJECT_ID --no-user-outp
 
 # grant access to cloud API
 ## declare all required roles
-declare -a ROLES=("roles/secretmanager.secretVersionManager" "roles/secretmanager.secretAccessor" "roles/secretmanager.viewer")
+declare -a ROLES=("roles/secretmanager.admin")
 
 ## now loop through all roles
 printf "\nSetting Roles...\n"
