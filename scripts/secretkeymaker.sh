@@ -12,4 +12,6 @@ kubectl -n "$NAMESPACE" create secret tls "$SECRETNAME" --cert="$PUBLICKEY" --ke
 
 yq -i '.metadata.labels["sealedsecrets.bitnami.com/sealed-secrets-key"] = "active"' $K8SMANIFEST
 
+yq -i 'del(metadata.creationTimestamp)' $K8SMANIFEST
+
 rm $PRIVATEKEY $PUBLICKEY
