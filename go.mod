@@ -4,6 +4,7 @@ go 1.18
 
 require (
 	cloud.google.com/go/secretmanager v1.5.0
+	github.com/googleapis/gax-go/v2 v2.4.0
 	github.com/spf13/viper v1.12.0
 	google.golang.org/api v0.85.0
 	google.golang.org/genproto v0.0.0-20220617124728-180714bec0ad
@@ -25,7 +26,6 @@ require (
 	github.com/google/go-cmp v0.5.8 // indirect
 	github.com/google/gofuzz v1.1.0 // indirect
 	github.com/googleapis/enterprise-certificate-proxy v0.1.0 // indirect
-	github.com/googleapis/gax-go/v2 v2.4.0 // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
 	github.com/imdario/mergo v0.3.6 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect

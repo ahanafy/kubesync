@@ -152,6 +152,7 @@ func (g GCPCreds) AddSecretVersion(path string, payload []byte) (string, error) 
 }
 
 func (g GCPCreds) WriteSecret(projectID string, secretName string, payload []byte) error {
+	var addVersion bool = true
 
 	// Create GCP secret phase
 	gcpSecretName, err := g.CreateSecret(fmt.Sprintf("projects/%s", projectID), secretName)
@@ -180,28 +181,43 @@ func (g GCPCreds) WriteSecret(projectID string, secretName string, payload []byt
 			// compare `payload` to `gcp payload`
 			fmt.Println("Is originalPayload equal to gcpPayload: ", reflect.DeepEqual(&originalPayload, &gcpPayload))
 
-			if !reflect.DeepEqual(&originalPayload, &gcpPayload) {
-				// Input data.
-				versionResponse, err := g.AddSecretVersion(gcpSecretName, payload)
-				if err != nil {
-					return err
-				}
-				fmt.Println(versionResponse)
-				return nil
+			if reflect.DeepEqual(&originalPayload, &gcpPayload) {
+				addVersion = false
+				fmt.Println("already synced")
 			}
-			fmt.Println("already synced")
-			return nil
 
 		} else {
 			return err
 		}
 	}
 
-	// Input data.
-	versionResponse, err := g.AddSecretVersion(gcpSecretName, payload)
-	if err != nil {
-		return err
+	if addVersion {
+		// Input data.
+		versionResponse, err := g.AddSecretVersion(gcpSecretName, payload)
+		if err != nil {
+			return err
+		}
+		fmt.Println(versionResponse)
 	}
-	fmt.Println(versionResponse)
 	return nil
+}
+
+func (g GCPCreds) ReconcileSecrets(projectID string) {
+	// Build remote secrets list
+	// Get all GCP secrets phase
+	secretslist, errlist := g.ListSecrets(fmt.Sprintf("projects/%s", projectID))
+	for _, err := range errlist {
+		if err != nil {
+			fmt.Println(err)
+		}
+	}
+
+	for _, secret := range secretslist {
+
+		result, err := g.AccessSecretVersion(fmt.Sprintf("%s/versions/latest", secret))
+		if err != nil {
+			fmt.Println(err)
+		}
+		fmt.Println(string(result))
+	}
 }

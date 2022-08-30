@@ -42,23 +42,6 @@ func main() {
 	g := new(gcpapi.GCPCreds)
 	g.Creds = creds
 
-	// Get all GCP secrets phase
-	secretslist, errlist := g.ListSecrets(fmt.Sprintf("projects/%s", projectID))
-	for _, err := range errlist {
-		if err != nil {
-			fmt.Println(err)
-		}
-	}
-
-	for _, secret := range secretslist {
-
-		_, err := g.AccessSecretVersion(fmt.Sprintf("%s/versions/latest", secret))
-		if err != nil {
-			fmt.Println(err)
-		}
-		// fmt.Println(string(result))
-	}
-
 	// Kubernetes access phase
 
 	// Using the default configuration rules get the info
