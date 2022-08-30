@@ -172,20 +172,3 @@ func (g GCPCreds) WriteSecret(projectID string, secretName string, payload []byt
 	fmt.Println(versionResponse)
 	return nil
 }
-
-func (g GCPCreds) UpdateSecret(projectID string, secretName string, payload []byte) error {
-
-	// Create GCP secret phase
-	gcpSecretName, err := g.CreateSecret(fmt.Sprintf("projects/%s", projectID), secretName)
-	if err != nil {
-		return err
-	}
-
-	// Input data.
-	versionResponse, err := g.AddSecretVersion(gcpSecretName, payload)
-	if err != nil {
-		return err
-	}
-	fmt.Println(versionResponse)
-	return nil
-}
