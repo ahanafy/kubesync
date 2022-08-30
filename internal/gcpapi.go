@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	secretmanager "cloud.google.com/go/secretmanager/apiv1"
+	"github.com/googleapis/gax-go/v2/apierror"
 	"google.golang.org/api/iterator"
 	"google.golang.org/api/option"
 	secretmanagerpb "google.golang.org/genproto/googleapis/cloud/secretmanager/v1"
@@ -148,6 +149,31 @@ func (g GCPCreds) AddSecretVersion(path string, payload []byte) (string, error) 
 }
 
 func (g GCPCreds) WriteSecret(projectID string, secretName string, payload []byte) error {
+
+	// Create GCP secret phase
+	gcpSecretName, err := g.CreateSecret(fmt.Sprintf("projects/%s", projectID), secretName)
+
+	// Check for access error, or it could already exist
+	if err != nil {
+		// Check if secret already exists
+		if err.(*apierror.APIError).GRPCStatus().Code() == 6 {
+			fmt.Println("Already exists")
+			gcpSecretName = fmt.Sprintf("projects/%s/secrets/%s", projectID, secretName)
+		} else {
+			return err
+		}
+	}
+
+	// Input data.
+	versionResponse, err := g.AddSecretVersion(gcpSecretName, payload)
+	if err != nil {
+		return err
+	}
+	fmt.Println(versionResponse)
+	return nil
+}
+
+func (g GCPCreds) UpdateSecret(projectID string, secretName string, payload []byte) error {
 
 	// Create GCP secret phase
 	gcpSecretName, err := g.CreateSecret(fmt.Sprintf("projects/%s", projectID), secretName)
