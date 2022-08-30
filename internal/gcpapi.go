@@ -2,13 +2,16 @@ package gcpapi
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"reflect"
 
 	secretmanager "cloud.google.com/go/secretmanager/apiv1"
 	"github.com/googleapis/gax-go/v2/apierror"
 	"google.golang.org/api/iterator"
 	"google.golang.org/api/option"
 	secretmanagerpb "google.golang.org/genproto/googleapis/cloud/secretmanager/v1"
+	corev1 "k8s.io/api/core/v1"
 )
 
 type GCPCreds struct {
@@ -159,6 +162,36 @@ func (g GCPCreds) WriteSecret(projectID string, secretName string, payload []byt
 		if err.(*apierror.APIError).GRPCStatus().Code() == 6 {
 			fmt.Println("Already exists")
 			gcpSecretName = fmt.Sprintf("projects/%s/secrets/%s", projectID, secretName)
+
+			var originalPayload corev1.Secret
+			if err := json.Unmarshal(payload, &originalPayload); err != nil {
+				panic(err)
+			}
+
+			gcpPayloadBytes, err := g.AccessSecretVersion(fmt.Sprintf("%s/versions/latest", gcpSecretName))
+			if err != nil {
+				return err
+			}
+			var gcpPayload corev1.Secret
+			if err := json.Unmarshal(gcpPayloadBytes, &gcpPayload); err != nil {
+				panic(err)
+			}
+
+			// compare `payload` to `gcp payload`
+			fmt.Println("Is originalPayload equal to gcpPayload: ", reflect.DeepEqual(&originalPayload, &gcpPayload))
+
+			if !reflect.DeepEqual(&originalPayload, &gcpPayload) {
+				// Input data.
+				versionResponse, err := g.AddSecretVersion(gcpSecretName, payload)
+				if err != nil {
+					return err
+				}
+				fmt.Println(versionResponse)
+				return nil
+			}
+			fmt.Println("already synced")
+			return nil
+
 		} else {
 			return err
 		}

@@ -52,11 +52,11 @@ func main() {
 
 	for _, secret := range secretslist {
 
-		result, err := g.AccessSecretVersion(fmt.Sprintf("%s/versions/latest", secret))
+		_, err := g.AccessSecretVersion(fmt.Sprintf("%s/versions/latest", secret))
 		if err != nil {
 			fmt.Println(err)
 		}
-		fmt.Println(string(result))
+		// fmt.Println(string(result))
 	}
 
 	// Kubernetes access phase
@@ -141,7 +141,7 @@ func main() {
 			err = g.WriteSecret(projectID, k8sObject.Name, k)
 			if err != nil {
 				fmt.Println(err)
-				fmt.Printf("Coudln't create: %s\n", k8sObject.Name)
+				fmt.Printf("Couldn't create: %s\n", k8sObject.Name)
 			} else {
 				fmt.Printf("Created: %s\n", k8sObject.Name)
 			}
@@ -155,7 +155,7 @@ func marshalK8s(k8sObject *corev1.Secret) ([]byte, error) {
 	if err != nil {
 		fmt.Println(err)
 	}
-	fmt.Println(string(k))
+
 	return k, err
 }
 
