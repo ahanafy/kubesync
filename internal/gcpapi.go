@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"path"
 	"reflect"
 
 	secretmanager "cloud.google.com/go/secretmanager/apiv1"
@@ -12,10 +13,21 @@ import (
 	"google.golang.org/api/option"
 	secretmanagerpb "google.golang.org/genproto/googleapis/cloud/secretmanager/v1"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
 )
 
 type GCPCreds struct {
 	Creds []byte
+	Rc    *rest.RESTClient
+	Kc    *kubernetes.Clientset
+}
+
+type Secret struct {
+	Name    string
+	Path    string
+	Payload []byte
 }
 
 // AccessSecretVersion returns the payload for the given secret version if one
@@ -152,8 +164,109 @@ func (g GCPCreds) AddSecretVersion(path string, payload []byte) (string, error) 
 }
 
 func (g GCPCreds) WriteSecret(projectID string, secretName string, payload []byte) error {
-	var addVersion bool = true
 
+	// Collect all backed up values
+	valueList := g.ReconcileSecrets(projectID)
+
+	for _, secret := range valueList {
+		fmt.Println("go")
+
+		// if the `secretName` from the cluster is found in the list of remote secret[secretName] then...
+		if s, found := secret[secretName]; found {
+
+			if s.Name == secretName {
+
+				fmt.Printf("%s MATCHES %s\n", s.Name, secretName)
+				fmt.Println("we know about this remotely so remove it from our temporary remote list")
+				delete(secret, secretName)
+			} else {
+				fmt.Println("we dont know about this remotely yet")
+			}
+		}
+	}
+	err := g.idempotentCreateRemoteSecret(projectID, secretName, payload)
+	// loop over elements of slice
+	for _, secret := range valueList {
+
+		for _, v := range secret {
+			// fmt.Println(k, "value is", v)
+			var secret *corev1.Secret
+			if err := json.Unmarshal([]byte(v.Payload), &secret); err != nil {
+				panic(err)
+			}
+
+			secretsClient := g.Kc.CoreV1().Secrets(secret.Namespace)
+			_, err := secretsClient.Get(context.TODO(), secret.Name, metav1.GetOptions{})
+			if err != nil {
+				g.ApplyK8s(v, "create")
+			}
+
+		}
+
+	}
+	return err
+}
+
+func (g GCPCreds) ReconcileSecrets(projectID string) []map[string]Secret {
+	items := make([]map[string]Secret, 0)
+
+	// Build remote secrets list
+	// Get all GCP secrets phase
+	secretslist, errlist := g.ListSecrets(fmt.Sprintf("projects/%s", projectID))
+	for _, err := range errlist {
+		if err != nil {
+			fmt.Println(err)
+		}
+	}
+
+	for _, secret := range secretslist {
+		item := make(map[string]Secret)
+		result, err := g.AccessSecretVersion(fmt.Sprintf("%s/versions/latest", secret))
+		if err != nil {
+			fmt.Println(err)
+		}
+		item[path.Base(secret)] = Secret{
+			Name:    path.Base(secret),
+			Path:    secret,
+			Payload: result,
+		}
+		items = append(items, item)
+
+	}
+	return items
+}
+
+func (g GCPCreds) ApplyK8s(sec Secret, verb string) {
+	secretsClient := g.Kc.CoreV1().Secrets(corev1.NamespaceDefault)
+	var secret *corev1.Secret
+	if err := json.Unmarshal(sec.Payload, &secret); err != nil {
+		panic(err)
+	}
+	secret.UID = ""
+	secret.ResourceVersion = ""
+
+	if verb == "update" {
+		// Update Secret
+		fmt.Println("Updating secret...")
+		results, err := secretsClient.Update(context.TODO(), secret, metav1.UpdateOptions{})
+		if err != nil {
+			panic(err)
+		}
+		fmt.Printf("Updated secret %q.\n", results.GetObjectMeta().GetName())
+	} else {
+		// Create Secret
+		fmt.Println("Creating secret...")
+		results, err := secretsClient.Create(context.TODO(), secret, metav1.CreateOptions{})
+		if err != nil {
+			panic(err)
+		}
+		fmt.Printf("Created secret %q.\n", results.GetObjectMeta().GetName())
+	}
+
+}
+
+func (g GCPCreds) idempotentCreateRemoteSecret(projectID string, secretName string, payload []byte) error {
+	var addVersion bool = true
 	// Create GCP secret phase
 	gcpSecretName, err := g.CreateSecret(fmt.Sprintf("projects/%s", projectID), secretName)
 
@@ -200,24 +313,4 @@ func (g GCPCreds) WriteSecret(projectID string, secretName string, payload []byt
 		fmt.Println(versionResponse)
 	}
 	return nil
-}
-
-func (g GCPCreds) ReconcileSecrets(projectID string) {
-	// Build remote secrets list
-	// Get all GCP secrets phase
-	secretslist, errlist := g.ListSecrets(fmt.Sprintf("projects/%s", projectID))
-	for _, err := range errlist {
-		if err != nil {
-			fmt.Println(err)
-		}
-	}
-
-	for _, secret := range secretslist {
-
-		result, err := g.AccessSecretVersion(fmt.Sprintf("%s/versions/latest", secret))
-		if err != nil {
-			fmt.Println(err)
-		}
-		fmt.Println(string(result))
-	}
 }
