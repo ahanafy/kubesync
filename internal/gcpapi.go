@@ -169,18 +169,11 @@ func (g GCPCreds) WriteSecret(projectID string, secretName string, payload []byt
 	valueList := g.ReconcileSecrets(projectID)
 
 	for _, secret := range valueList {
-		fmt.Println("go")
-
 		// if the `secretName` from the cluster is found in the list of remote secret[secretName] then...
 		if s, found := secret[secretName]; found {
 
 			if s.Name == secretName {
-
-				fmt.Printf("%s MATCHES %s\n", s.Name, secretName)
-				fmt.Println("we know about this remotely so remove it from our temporary remote list")
 				delete(secret, secretName)
-			} else {
-				fmt.Println("we dont know about this remotely yet")
 			}
 		}
 	}
@@ -274,7 +267,6 @@ func (g GCPCreds) idempotentCreateRemoteSecret(projectID string, secretName stri
 	if err != nil {
 		// Check if secret already exists
 		if err.(*apierror.APIError).GRPCStatus().Code() == 6 {
-			fmt.Println("Already exists")
 			gcpSecretName = fmt.Sprintf("projects/%s/secrets/%s", projectID, secretName)
 
 			var originalPayload corev1.Secret
@@ -291,12 +283,8 @@ func (g GCPCreds) idempotentCreateRemoteSecret(projectID string, secretName stri
 				panic(err)
 			}
 
-			// compare `payload` to `gcp payload`
-			fmt.Println("Is originalPayload equal to gcpPayload: ", reflect.DeepEqual(&originalPayload, &gcpPayload))
-
 			if reflect.DeepEqual(&originalPayload, &gcpPayload) {
 				addVersion = false
-				fmt.Println("already synced")
 			}
 
 		} else {

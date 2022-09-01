@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -17,8 +16,8 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/dynamic/dynamicinformer"
 	"k8s.io/client-go/kubernetes"
@@ -82,13 +81,6 @@ func main() {
 		panic(err)
 	}
 
-	// create a RESTClient
-	// rc, err := rest.RESTClientFor(ccfg)
-	// if err != nil {
-	// 	panic(err.Error())
-	// }
-	// g.Rc = rc
-
 	// Create a factory object that we can say "hey, I need to watch this resource"
 	// and it will give us back an informer for it
 	f := dynamicinformer.NewFilteredDynamicSharedInformerFactory(dc, 0, v1.NamespaceAll, nil)
@@ -97,53 +89,12 @@ func main() {
 	// Finally, create our informer for deployments!
 	i := f.ForResource(*gvr)
 	stopCh := make(chan struct{})
-	go startWatching(stopCh, i.Informer(), logger)
+	go startWatching(stopCh, i.Informer(), projectID, logger, g)
 	sigCh := make(chan os.Signal)
 	signal.Notify(sigCh, os.Kill, os.Interrupt)
 	<-sigCh
 	close(stopCh)
 
-	// here we iterate all the events streamed by the watch.Interface
-	// for event := range watcher.ResultChan() {
-	// 	var k8sObject *corev1.Secret
-	// 	var k []byte = nil
-	// 	// retrieve the Secret
-	// 	item := event.Object.(*corev1.Secret)
-
-	// 	switch event.Type {
-
-	// 	// when a secret is deleted...
-	// 	case watch.Deleted:
-	// 		fmt.Printf("- '%s' %v ...Deleted\n", item.GetName(), event.Type)
-	// 	// when a secret is added...
-	// 	case watch.Added:
-	// 		fmt.Println(" ...Added!")
-	// 		k8sObject = changeEvent(item, event, rc)
-
-	// 		k, err = marshalK8s(k8sObject)
-	// 		if err != nil {
-	// 			fmt.Println(err)
-	// 		}
-	// 	// when a secret is modified...
-	// 	case watch.Modified:
-	// 		fmt.Println("...Modified!")
-	// 		k8sObject = changeEvent(item, event, rc)
-	// 		k, err = marshalK8s(k8sObject)
-	// 		if err != nil {
-	// 			fmt.Println(err)
-	// 		}
-	// 	}
-	// 	if k != nil {
-	// 		err = g.WriteSecret(projectID, k8sObject.Name, k)
-	// 		if err != nil {
-	// 			fmt.Println(err)
-	// 			fmt.Printf("Couldn't create: %s\n", k8sObject.Name)
-	// 		} else {
-	// 			fmt.Printf("Created: %s\n", k8sObject.Name)
-	// 		}
-	// 	}
-
-	// }
 }
 
 func marshalK8s(k8sObject *corev1.Secret) ([]byte, error) {
@@ -153,22 +104,6 @@ func marshalK8s(k8sObject *corev1.Secret) ([]byte, error) {
 	}
 
 	return k, err
-}
-
-func changeEvent(item *corev1.Secret, event watch.Event, rc *rest.RESTClient) *corev1.Secret {
-	fmt.Printf("+ '%s' %v  ", item.GetName(), event.Type)
-	secret := &corev1.Secret{}
-	err := rc.Get().Resource(("secrets")).
-		Namespace("default").
-		Name(item.Name).
-		Do(context.TODO()).
-		Into(secret)
-
-	if err != nil {
-		fmt.Println(err)
-	}
-
-	return secret
 }
 
 func restConfig() (*rest.Config, error) {
@@ -193,7 +128,7 @@ func restConfig() (*rest.Config, error) {
 	}
 	return kubeCfg, nil
 }
-func startWatching(stopCh <-chan struct{}, s cache.SharedIndexInformer, logger *zap.Logger) {
+func startWatching(stopCh <-chan struct{}, s cache.SharedIndexInformer, projectID string, logger *zap.Logger, g *gcpapi.GCPCreds) {
 
 	defer func() {
 		_ = logger.Sync()
@@ -207,6 +142,8 @@ func startWatching(stopCh <-chan struct{}, s cache.SharedIndexInformer, logger *
 				"namespace", u.GetNamespace(),
 				"labels", u.GetLabels(),
 			)
+			writeIt(u, projectID, g)
+
 		},
 		UpdateFunc: func(oldObj, obj interface{}) {
 			u := obj.(*unstructured.Unstructured)
@@ -215,6 +152,7 @@ func startWatching(stopCh <-chan struct{}, s cache.SharedIndexInformer, logger *
 				"namespace", u.GetNamespace(),
 				"labels", u.GetLabels(),
 			)
+			writeIt(u, projectID, g)
 		},
 		DeleteFunc: func(obj interface{}) {
 			u := obj.(*unstructured.Unstructured)
@@ -222,9 +160,33 @@ func startWatching(stopCh <-chan struct{}, s cache.SharedIndexInformer, logger *
 				"name", u.GetName(),
 				"namespace", u.GetNamespace(),
 				"labels", u.GetLabels(),
+				"type", u.GetKind(),
 			)
 		},
 	}
+
 	s.AddEventHandler(handlers)
 	s.Run(stopCh)
+}
+
+func writeIt(k *unstructured.Unstructured, projectID string, g *gcpapi.GCPCreds) {
+	if k != nil && k.GetKind() == "Secret" {
+		// Unstructured -> Typed
+		var tSecret corev1.Secret
+		err := runtime.DefaultUnstructuredConverter.FromUnstructured(k.Object, &tSecret)
+		if err != nil {
+			panic(err.Error())
+		}
+		ts, err := marshalK8s(&tSecret)
+		if err != nil {
+			panic(err.Error())
+		}
+		err = g.WriteSecret(projectID, k.GetName(), ts)
+		if err != nil {
+			fmt.Println(err)
+			fmt.Printf("Couldn't create: %s\n", k.GetName())
+		} else {
+			fmt.Printf("Created: %s\n", k.GetName())
+		}
+	}
 }
