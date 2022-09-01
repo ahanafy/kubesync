@@ -6,7 +6,7 @@ require (
 	cloud.google.com/go/secretmanager v1.5.0
 	github.com/googleapis/gax-go/v2 v2.4.0
 	github.com/spf13/viper v1.12.0
-	go.uber.org/zap v1.17.0
+	go.uber.org/zap v1.23.0
 	google.golang.org/api v0.94.0
 	google.golang.org/genproto v0.0.0-20220624142145-8cd45d7dbd1f
 	k8s.io/api v0.25.0
