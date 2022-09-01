@@ -209,10 +209,20 @@ func startWatching(stopCh <-chan struct{}, s cache.SharedIndexInformer, logger *
 			)
 		},
 		UpdateFunc: func(oldObj, obj interface{}) {
-			sugar.Info("received update event!")
+			u := obj.(*unstructured.Unstructured)
+			sugar.Infow("received update event!",
+				"name", u.GetName(),
+				"namespace", u.GetNamespace(),
+				"labels", u.GetLabels(),
+			)
 		},
 		DeleteFunc: func(obj interface{}) {
-			sugar.Info("received delete event!")
+			u := obj.(*unstructured.Unstructured)
+			sugar.Infow("received delete event!",
+				"name", u.GetName(),
+				"namespace", u.GetNamespace(),
+				"labels", u.GetLabels(),
+			)
 		},
 	}
 	s.AddEventHandler(handlers)
