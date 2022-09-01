@@ -230,7 +230,7 @@ func (g GCPCreds) ReconcileSecrets(projectID string) []map[string]Secret {
 }
 
 func (g GCPCreds) ApplyK8s(sec Secret, verb string) {
-	secretsClient := g.Kc.CoreV1().Secrets(corev1.NamespaceDefault)
+	
 	var secret *corev1.Secret
 	if err := json.Unmarshal(sec.Payload, &secret); err != nil {
 		panic(err)
@@ -238,6 +238,7 @@ func (g GCPCreds) ApplyK8s(sec Secret, verb string) {
 	secret.UID = ""
 	secret.ResourceVersion = ""
 
+	secretsClient := g.Kc.CoreV1().Secrets(secret.Namespace)
 	if verb == "update" {
 		// Update Secret
 		fmt.Println("Updating secret...")
