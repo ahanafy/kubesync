@@ -7,24 +7,29 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"strings"
-	"time"
 
 	gcpapi "github.com/ahanafy/kubesync/internal"
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/watch"
+	"k8s.io/client-go/dynamic"
+	"k8s.io/client-go/dynamic/dynamicinformer"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/util/homedir"
 )
+
+// TODO - Get from config.yaml
+var resource = "secrets.v1."
 
 func main() {
 	logger, _ := zap.NewProduction()
@@ -43,7 +48,7 @@ func main() {
 	}
 
 	var projectID = viper.GetString("GCP_PROJECT_ID")
-
+	logger.Info(projectID)
 	creds, err := ioutil.ReadFile(viper.GetString("GOOGLE_APPLICATION_CREDENTIALS"))
 
 	if err != nil {
@@ -55,98 +60,88 @@ func main() {
 
 	// Kubernetes access phase
 
-	// Using the default configuration rules get the info
-	// to connect to the Kubernetes cluster
-	configLoader := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
-		clientcmd.NewDefaultClientConfigLoadingRules(),
-		&clientcmd.ConfigOverrides{},
-	)
+	ccfg, err := restConfig()
+	if err != nil {
+		sugar.Fatal("could not get config",
+			zap.Error(err),
+		)
+	}
 
-	// create the Config object
-	cfg, err := configLoader.ClientConfig()
+	// Grab a dynamic interface that we can create informers from
+	dc, err := dynamic.NewForConfig(ccfg)
+	if err != nil {
+		sugar.Fatal("could not generate dynamic client for config",
+			zap.Error(err),
+		)
+	}
 
+	g.Kc, err = kubernetes.NewForConfig(ccfg)
 	if err != nil {
 		panic(err)
 	}
-
-	g.Kc, err = kubernetes.NewForConfig(cfg)
-	if err != nil {
-		panic(err)
-	}
-
-	// we want to use the core API (secrets lives here)
-	cfg.APIPath = "/api"
-	cfg.GroupVersion = &corev1.SchemeGroupVersion
-	cfg.NegotiatedSerializer = scheme.Codecs.WithoutConversion()
 
 	// create a RESTClient
-	rc, err := rest.RESTClientFor(cfg)
-	if err != nil {
-		panic(err.Error())
-	}
-	g.Rc = rc
-	// utility function to create a int64 pointer
-	i64Ptr := func(i int64) *int64 { return &i }
+	// rc, err := rest.RESTClientFor(ccfg)
+	// if err != nil {
+	// 	panic(err.Error())
+	// }
+	// g.Rc = rc
 
-	labelSelector := viper.GetString("LABEL")
-
-	opts := metav1.ListOptions{
-		TimeoutSeconds: i64Ptr(120),
-		LabelSelector:  labelSelector,
-		Watch:          true,
-	}
-
-	// attempts to begin watching the secrets
-	// returns a `watch.Interface`, or an error
-	watcher, err := rc.Get().Resource("secrets").
-		VersionedParams(&opts, scheme.ParameterCodec).
-		Timeout(time.Duration(*opts.TimeoutSeconds)).
-		Watch(context.TODO())
-	if err != nil {
-		panic(err)
-	}
+	// Create a factory object that we can say "hey, I need to watch this resource"
+	// and it will give us back an informer for it
+	f := dynamicinformer.NewFilteredDynamicSharedInformerFactory(dc, 0, v1.NamespaceAll, nil)
+	// Retrieve a "GroupVersionResource" type that we need when generating our informer from our dynamic factory
+	gvr, _ := schema.ParseResourceArg(resource)
+	// Finally, create our informer for deployments!
+	i := f.ForResource(*gvr)
+	stopCh := make(chan struct{})
+	go startWatching(stopCh, i.Informer(), logger)
+	sigCh := make(chan os.Signal)
+	signal.Notify(sigCh, os.Kill, os.Interrupt)
+	<-sigCh
+	close(stopCh)
 
 	// here we iterate all the events streamed by the watch.Interface
-	for event := range watcher.ResultChan() {
-		var k8sObject *corev1.Secret
-		var k []byte = nil
-		// retrieve the Secret
-		item := event.Object.(*corev1.Secret)
+	// for event := range watcher.ResultChan() {
+	// 	var k8sObject *corev1.Secret
+	// 	var k []byte = nil
+	// 	// retrieve the Secret
+	// 	item := event.Object.(*corev1.Secret)
 
-		switch event.Type {
+	// 	switch event.Type {
 
-		// when a secret is deleted...
-		case watch.Deleted:
-			fmt.Printf("- '%s' %v ...Deleted\n", item.GetName(), event.Type)
-		// when a secret is added...
-		case watch.Added:
-			fmt.Println(" ...Added!")
-			k8sObject = changeEvent(item, event, rc)
+	// 	// when a secret is deleted...
+	// 	case watch.Deleted:
+	// 		fmt.Printf("- '%s' %v ...Deleted\n", item.GetName(), event.Type)
+	// 	// when a secret is added...
+	// 	case watch.Added:
+	// 		fmt.Println(" ...Added!")
+	// 		k8sObject = changeEvent(item, event, rc)
 
-			k, err = marshalK8s(k8sObject)
-			if err != nil {
-				fmt.Println(err)
-			}
-		// when a secret is modified...
-		case watch.Modified:
-			fmt.Println("...Modified!")
-			k8sObject = changeEvent(item, event, rc)
-			k, err = marshalK8s(k8sObject)
-			if err != nil {
-				fmt.Println(err)
-			}
-		}
-		if k != nil {
-			err = g.WriteSecret(projectID, k8sObject.Name, k)
-			if err != nil {
-				fmt.Println(err)
-				fmt.Printf("Couldn't create: %s\n", k8sObject.Name)
-			} else {
-				fmt.Printf("Created: %s\n", k8sObject.Name)
-			}
-		}
+	// 		k, err = marshalK8s(k8sObject)
+	// 		if err != nil {
+	// 			fmt.Println(err)
+	// 		}
+	// 	// when a secret is modified...
+	// 	case watch.Modified:
+	// 		fmt.Println("...Modified!")
+	// 		k8sObject = changeEvent(item, event, rc)
+	// 		k, err = marshalK8s(k8sObject)
+	// 		if err != nil {
+	// 			fmt.Println(err)
+	// 		}
+	// 	}
+	// 	if k != nil {
+	// 		err = g.WriteSecret(projectID, k8sObject.Name, k)
+	// 		if err != nil {
+	// 			fmt.Println(err)
+	// 			fmt.Printf("Couldn't create: %s\n", k8sObject.Name)
+	// 		} else {
+	// 			fmt.Printf("Created: %s\n", k8sObject.Name)
+	// 		}
+	// 	}
 
-	}
+	// }
 }
 
 func marshalK8s(k8sObject *corev1.Secret) ([]byte, error) {
@@ -196,34 +191,23 @@ func restConfig() (*rest.Config, error) {
 	}
 	return kubeCfg, nil
 }
-func startWatching(stopCh <-chan struct{}, s cache.SharedIndexInformer) {
-	logger, _ := zap.NewProduction()
+func startWatching(stopCh <-chan struct{}, s cache.SharedIndexInformer, logger *zap.Logger) {
 	defer logger.Sync() // flushes buffer, if any
 	sugar := logger.Sugar()
 	handlers := cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			u := obj.(*unstructured.Unstructured)
-
 			sugar.Infow("received add event!",
 				"name", u.GetName(),
 				"namespace", u.GetNamespace(),
 				"labels", u.GetLabels(),
 			)
-
-			// logrus.WithFields(logrus.Fields{
-			// 	"name":      u.GetName(),
-			// 	"namespace": u.GetNamespace(),
-			// 	"labels":    u.GetLabels(),
-			// }).Info("received add event!")
 		},
 		UpdateFunc: func(oldObj, obj interface{}) {
-			// logrus.Info("received update event!")
 			sugar.Info("received update event!")
-
 		},
 		DeleteFunc: func(obj interface{}) {
-			// logrus.Info("received update event!")
-			sugar.Info("received update event!")
+			sugar.Info("received delete event!")
 		},
 	}
 	s.AddEventHandler(handlers)
