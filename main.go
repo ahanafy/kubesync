@@ -3,24 +3,34 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
 	gcpapi "github.com/ahanafy/kubesync/internal"
 	"github.com/spf13/viper"
+	"go.uber.org/zap"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/clientcmd"
+	"k8s.io/client-go/util/homedir"
 )
 
 func main() {
+	logger, _ := zap.NewProduction()
+	defer logger.Sync() // flushes buffer, if any
+	sugar := logger.Sugar()
+
 	env := "./config/config.yaml"
 	if strings.EqualFold(os.Getenv("DEBUG"), "TRUE") {
 		env = "./config/config.local.yaml"
@@ -162,4 +172,60 @@ func changeEvent(item *corev1.Secret, event watch.Event, rc *rest.RESTClient) *c
 	}
 
 	return secret
+}
+
+func restConfig() (*rest.Config, error) {
+	kubeCfg, err := rest.InClusterConfig()
+	var kubeconfig *string
+	if err != nil {
+		if home := homedir.HomeDir(); home != "" {
+			kubeconfig = flag.String("kubeconfig", filepath.Join(home, ".kube", "config"), "(optional) absolute path to the kubeconfig file")
+		} else {
+			kubeconfig = flag.String("kubeconfig", "", "absolute path to the kubeconfig file")
+		}
+		flag.Parse()
+
+		kubeCfg, err = clientcmd.BuildConfigFromFlags("", *kubeconfig)
+		if err != nil {
+			panic(err)
+		}
+	}
+
+	if err != nil {
+		return nil, err
+	}
+	return kubeCfg, nil
+}
+func startWatching(stopCh <-chan struct{}, s cache.SharedIndexInformer) {
+	logger, _ := zap.NewProduction()
+	defer logger.Sync() // flushes buffer, if any
+	sugar := logger.Sugar()
+	handlers := cache.ResourceEventHandlerFuncs{
+		AddFunc: func(obj interface{}) {
+			u := obj.(*unstructured.Unstructured)
+
+			sugar.Infow("received add event!",
+				"name", u.GetName(),
+				"namespace", u.GetNamespace(),
+				"labels", u.GetLabels(),
+			)
+
+			// logrus.WithFields(logrus.Fields{
+			// 	"name":      u.GetName(),
+			// 	"namespace": u.GetNamespace(),
+			// 	"labels":    u.GetLabels(),
+			// }).Info("received add event!")
+		},
+		UpdateFunc: func(oldObj, obj interface{}) {
+			// logrus.Info("received update event!")
+			sugar.Info("received update event!")
+
+		},
+		DeleteFunc: func(obj interface{}) {
+			// logrus.Info("received update event!")
+			sugar.Info("received update event!")
+		},
+	}
+	s.AddEventHandler(handlers)
+	s.Run(stopCh)
 }
