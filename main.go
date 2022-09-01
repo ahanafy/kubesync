@@ -10,6 +10,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
 	gcpapi "github.com/ahanafy/kubesync/internal"
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
@@ -81,9 +83,15 @@ func main() {
 		panic(err)
 	}
 
+	labelSelector := viper.GetString("LABEL")
+
+	labelOptions := func(opts *metav1.ListOptions) {
+		opts.LabelSelector = labelSelector
+	}
+
 	// Create a factory object that we can say "hey, I need to watch this resource"
 	// and it will give us back an informer for it
-	f := dynamicinformer.NewFilteredDynamicSharedInformerFactory(dc, 0, v1.NamespaceAll, nil)
+	f := dynamicinformer.NewFilteredDynamicSharedInformerFactory(dc, 0, v1.NamespaceAll, labelOptions)
 	// Retrieve a "GroupVersionResource" type that we need when generating our informer from our dynamic factory
 	gvr, _ := schema.ParseResourceArg(resource)
 	// Finally, create our informer for deployments!
