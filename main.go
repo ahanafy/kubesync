@@ -33,7 +33,9 @@ var resource = "secrets.v1."
 
 func main() {
 	logger, _ := zap.NewProduction()
-	defer logger.Sync() // flushes buffer, if any
+	defer func() {
+		_ = logger.Sync()
+	}()
 	sugar := logger.Sugar()
 
 	env := "./config/config.yaml"
@@ -192,7 +194,10 @@ func restConfig() (*rest.Config, error) {
 	return kubeCfg, nil
 }
 func startWatching(stopCh <-chan struct{}, s cache.SharedIndexInformer, logger *zap.Logger) {
-	defer logger.Sync() // flushes buffer, if any
+
+	defer func() {
+		_ = logger.Sync()
+	}()
 	sugar := logger.Sugar()
 	handlers := cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
