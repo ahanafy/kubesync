@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -9,6 +10,8 @@ import (
 	"os/signal"
 	"path/filepath"
 	"strings"
+
+	"github.com/uptrace/opentelemetry-go-extra/otelzap"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -33,11 +36,14 @@ import (
 var resource = "secrets.v1."
 
 func main() {
-	logger, _ := zap.NewProduction()
-	defer func() {
-		_ = logger.Sync()
-	}()
-	sugar := logger.Sugar()
+	logger := otelzap.New(zap.NewExample())
+	defer logger.Sync()
+
+	undo := otelzap.ReplaceGlobals(logger)
+	defer undo()
+
+	otelzap.L().Info("replaced zap's global loggers")
+	otelzap.Ctx(context.TODO()).Info("... and with context")
 
 	env := "./config/config.yaml"
 	if strings.EqualFold(os.Getenv("DEBUG"), "TRUE") {
@@ -65,7 +71,7 @@ func main() {
 
 	ccfg, err := restConfig()
 	if err != nil {
-		sugar.Fatal("could not get config",
+		otelzap.L().Ctx(context.TODO()).Fatal("could not get config",
 			zap.Error(err),
 		)
 	}
@@ -73,7 +79,7 @@ func main() {
 	// Grab a dynamic interface that we can create informers from
 	dc, err := dynamic.NewForConfig(ccfg)
 	if err != nil {
-		sugar.Fatal("could not generate dynamic client for config",
+		otelzap.L().Ctx(context.TODO()).Fatal("could not generate dynamic client for config",
 			zap.Error(err),
 		)
 	}
@@ -97,7 +103,7 @@ func main() {
 	// Finally, create our informer for deployments!
 	i := f.ForResource(*gvr)
 	stopCh := make(chan struct{})
-	go startWatching(stopCh, i.Informer(), projectID, logger, g)
+	go startWatching(stopCh, i.Informer(), projectID, g)
 	sigCh := make(chan os.Signal)
 	signal.Notify(sigCh, os.Kill, os.Interrupt)
 	<-sigCh
@@ -136,16 +142,11 @@ func restConfig() (*rest.Config, error) {
 	}
 	return kubeCfg, nil
 }
-func startWatching(stopCh <-chan struct{}, s cache.SharedIndexInformer, projectID string, logger *zap.Logger, g *gcpapi.GCPCreds) {
-
-	defer func() {
-		_ = logger.Sync()
-	}()
-	sugar := logger.Sugar()
+func startWatching(stopCh <-chan struct{}, s cache.SharedIndexInformer, projectID string, g *gcpapi.GCPCreds) {
 	handlers := cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			u := obj.(*unstructured.Unstructured)
-			sugar.Infow("received add event!",
+			otelzap.S().Ctx(context.TODO()).Infow("received add event!",
 				"name", u.GetName(),
 				"namespace", u.GetNamespace(),
 				"labels", u.GetLabels(),
@@ -155,7 +156,7 @@ func startWatching(stopCh <-chan struct{}, s cache.SharedIndexInformer, projectI
 		},
 		UpdateFunc: func(oldObj, obj interface{}) {
 			u := obj.(*unstructured.Unstructured)
-			sugar.Infow("received update event!",
+			otelzap.S().Ctx(context.TODO()).Infow("received update event!",
 				"name", u.GetName(),
 				"namespace", u.GetNamespace(),
 				"labels", u.GetLabels(),
@@ -164,7 +165,7 @@ func startWatching(stopCh <-chan struct{}, s cache.SharedIndexInformer, projectI
 		},
 		DeleteFunc: func(obj interface{}) {
 			u := obj.(*unstructured.Unstructured)
-			sugar.Infow("received delete event!",
+			otelzap.S().Ctx(context.TODO()).Infow("received delete event!",
 				"name", u.GetName(),
 				"namespace", u.GetNamespace(),
 				"labels", u.GetLabels(),
