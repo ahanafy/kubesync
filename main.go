@@ -178,24 +178,25 @@ func startWatching(stopCh <-chan struct{}, s cache.SharedIndexInformer, projectI
 	s.Run(stopCh)
 }
 
-func writeIt(k *unstructured.Unstructured, projectID string, g *gcpapi.GCPCreds) {
+func writeIt(k *unstructured.Unstructured, projectID string, g *gcpapi.GCPCreds) error {
 	if k != nil && k.GetKind() == "Secret" {
 		// Unstructured -> Typed
 		var tSecret corev1.Secret
 		err := runtime.DefaultUnstructuredConverter.FromUnstructured(k.Object, &tSecret)
 		if err != nil {
-			panic(err.Error())
+			return err
 		}
 		ts, err := marshalK8s(&tSecret)
 		if err != nil {
-			panic(err.Error())
+			return err
 		}
 		err = g.WriteSecret(projectID, k.GetName(), ts)
 		if err != nil {
-			fmt.Println(err)
 			fmt.Printf("Couldn't create: %s\n", k.GetName())
+			return err
 		} else {
 			fmt.Printf("Created: %s\n", k.GetName())
 		}
 	}
+	return nil
 }

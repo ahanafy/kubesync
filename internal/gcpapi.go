@@ -4,11 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
 	"path"
 	"reflect"
 
 	secretmanager "cloud.google.com/go/secretmanager/apiv1"
 	"github.com/googleapis/gax-go/v2/apierror"
+	"github.com/uptrace/opentelemetry-go-extra/otelzap"
 	"google.golang.org/api/iterator"
 	"google.golang.org/api/option"
 	secretmanagerpb "google.golang.org/genproto/googleapis/cloud/secretmanager/v1"
@@ -84,7 +86,19 @@ func (g GCPCreds) ListSecrets(parent string) (secrets []string, errors []error) 
 		}
 
 		if err != nil {
+			otelzap.S().
+				Ctx(context.TODO()).
+				Errorw("Client error while connecting!",
+					err,
+				)
 			errors = append(errors, err)
+
+			if e, ok := err.(*apierror.APIError); ok {
+				if e.GRPCStatus().Code() == 7 {
+					os.Exit(1)
+				}
+				return secrets, errors
+			}
 			secrets = append(secrets, "")
 			continue
 		}
@@ -208,8 +222,11 @@ func (g GCPCreds) ReconcileSecrets(projectID string) []map[string]Secret {
 	secretslist, errlist := g.ListSecrets(fmt.Sprintf("projects/%s", projectID))
 	for _, err := range errlist {
 		if err != nil {
-			fmt.Println(err)
+			otelzap.S().Ctx(context.TODO()).Errorw("Error building secrets list!",
+				"error", err,
+			)
 		}
+
 	}
 
 	for _, secret := range secretslist {
@@ -217,13 +234,14 @@ func (g GCPCreds) ReconcileSecrets(projectID string) []map[string]Secret {
 		result, err := g.AccessSecretVersion(fmt.Sprintf("%s/versions/latest", secret))
 		if err != nil {
 			fmt.Println(err)
+		} else {
+			item[path.Base(secret)] = Secret{
+				Name:    path.Base(secret),
+				Path:    secret,
+				Payload: result,
+			}
+			items = append(items, item)
 		}
-		item[path.Base(secret)] = Secret{
-			Name:    path.Base(secret),
-			Path:    secret,
-			Payload: result,
-		}
-		items = append(items, item)
 
 	}
 	return items
