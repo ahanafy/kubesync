@@ -34,6 +34,7 @@ ko resolve --local -f build/deploy.yaml > release.yaml;
 IMAGENAME=$(cat release.yaml | yq -N '.spec.template.spec.containers[0] | with_entries( select( .value != null ) ) .image');
 docker save $IMAGENAME > tmp-image.tar;
 microk8s ctr image import tmp-image.tar;
-microk8s ctr images ls;
+microk8s ctr images ls | grep $IMAGENAME;
+rm -f tmp-image.tar;
 kubectl apply -f release.yaml;
 ```

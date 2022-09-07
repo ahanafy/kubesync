@@ -1,19 +1,13 @@
 #!/bin/bash
 
-RANDO=$(echo $RANDOM | md5sum | head -c 20; echo)
-mkdir "$RANDO"
-cat <<'EOF' >"$RANDO"/kustomization.yaml
-namespace: default
-secretGenerator:
-  - name: config-secret
-    files:
-      - "./config.yaml"
-    options:
-      disableNameSuffixHash: true
-EOF
+TEMP=$(echo $RANDOM | md5sum | head -c 20; echo)
+mkdir "$TEMP"
 
-cp config/config.local.yaml "$RANDO"/config.yaml
+cp config/kustomization.yaml "$TEMP"/kustomization.yaml
+cp config/config.local.yaml "$TEMP"/config.yaml
+cp config/creds.json "$TEMP"/creds.json
 
-result=$(kustomize build "$RANDO")
+result=$(kustomize build "$TEMP")
 echo "$result"
-rm -rf "$RANDO"
+rm -rf "$TEMP"
+
