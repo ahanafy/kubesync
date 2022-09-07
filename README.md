@@ -38,3 +38,11 @@ microk8s ctr images ls | grep $IMAGENAME;
 rm -f tmp-image.tar;
 kubectl apply -f release.yaml;
 ```
+
+### Troubleshooting the image
+
+To troubleshoot a distroless container, you can use an ephemeral pod like so:
+
+```sh
+kubectl debug -it $(kubectl get pod -l app=kubesync -o=name) --image=busybox
+```
