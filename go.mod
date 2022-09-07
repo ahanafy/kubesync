@@ -6,6 +6,7 @@ require (
 	cloud.google.com/go/secretmanager v1.5.0
 	github.com/googleapis/gax-go/v2 v2.5.1
 	github.com/spf13/viper v1.13.0
+	github.com/stretchr/testify v1.8.0
 	github.com/uptrace/opentelemetry-go-extra/otelzap v0.1.16
 	go.uber.org/zap v1.23.0
 	google.golang.org/api v0.95.0
@@ -45,6 +46,7 @@ require (
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/pelletier/go-toml v1.9.5 // indirect
 	github.com/pelletier/go-toml/v2 v2.0.5 // indirect
+	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/spf13/afero v1.9.2 // indirect
 	github.com/spf13/cast v1.5.0 // indirect
 	github.com/spf13/jwalterweatherman v1.1.0 // indirect

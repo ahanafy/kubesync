@@ -20,7 +20,7 @@ rsync -avn . /dev/shm --exclude-from .dockerignore
 
 ```sh
 export KO_DOCKER_REPO=ghcr.io/ahanafy/kubesync
-export KO_DOCKER_REPO=ko.local
+# export KO_DOCKER_REPO=ko.local
 # microk8s
 # export KO_DOCKER_REPO=localhost:32000
 # microk8s ctr images ls

@@ -140,7 +140,7 @@ func (g GCPCreds) CreateSecret(parent string, secretID string) (string, error) {
 	// Call the API.
 	result, err := client.CreateSecret(ctx, req)
 	if err != nil {
-
+		otelzap.S().Ctx(ctx).Errorw("CreateSecret error", err)
 		return "", err
 	}
 	fmt.Printf("created secret: %s\n", result.Name)
@@ -284,8 +284,14 @@ func (g GCPCreds) idempotentCreateRemoteSecret(projectID string, secretName stri
 
 	// Check for access error, or it could already exist
 	if err != nil {
+
+		e, ok := err.(*apierror.APIError)
+		if !ok {
+			otelzap.S().Ctx(context.TODO()).Errorw("Unable to make API request", err)
+			return err
+		}
 		// Check if secret already exists
-		if err.(*apierror.APIError).GRPCStatus().Code() == 6 {
+		if e.GRPCStatus().Code() == 6 {
 			gcpSecretName = fmt.Sprintf("projects/%s/secrets/%s", projectID, secretName)
 
 			var originalPayload corev1.Secret
@@ -307,7 +313,7 @@ func (g GCPCreds) idempotentCreateRemoteSecret(projectID string, secretName stri
 			}
 
 		} else {
-			return err
+			return e
 		}
 	}
 
