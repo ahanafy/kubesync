@@ -75,5 +75,6 @@ go.work
 __debug_bin
 *.local.yaml
 *creds.json
+release.yaml
 
 # End of User supplied values

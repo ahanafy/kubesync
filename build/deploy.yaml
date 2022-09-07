@@ -15,6 +15,21 @@ spec:
         app: kubesync
     spec:
       containers:
-      - name: kubesync
-        image: kubesync
-        imagePullPolicy: Never
+        - name: kubesync
+          image: ko://github.com/ahanafy/kubesync
+          imagePullPolicy: Never
+          resources:
+            requests:
+              memory: "64Mi"
+              cpu: "250m"
+            limits:
+              memory: "128Mi"
+              cpu: "500m"
+          volumeMounts:
+            - name: config-vol
+              mountPath: "/config"
+              readOnly: true
+      volumes:
+        - name: config-vol
+          secret:
+            secretName: config-secret
