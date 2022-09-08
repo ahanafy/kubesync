@@ -116,7 +116,7 @@ if [ -z "$RELEASE_URL" ]; then
 fi
 
 curl -sLO "$RELEASE_URL"
-ls release.yaml
+
 cp ./release.yaml "$where"
 
 popd >& /dev/null
