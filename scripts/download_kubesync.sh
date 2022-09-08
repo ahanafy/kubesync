@@ -5,18 +5,18 @@
 
 # If no argument is given -> Downloads the most recently released
 # kubesync deployment manifest to your current working directory.
-# (e.g. 'install_kubesync.sh')
+# (e.g. 'download_kubesync.sh')
 #
 # If one argument is given -> 
 # If that argument is in the format of #.#.#, downloads the specified
 # version of the kubesync deployment manifest to your current working directory.
 # If that argument is something else, downloads the most recently released
 # kubesync deployment manifest to the specified directory.
-# (e.g. 'install_kubesync.sh 3.8.2' or 'install_kubesync.sh ./build')
+# (e.g. 'download_kubesync.sh 3.8.2' or 'download_kubesync.sh ./build')
 #
 # If two arguments are given -> Downloads the specified version of the
 # kubesync deployment manifest to the specified directory.
-# (e.g. 'install_kubesync.sh 3.8.2 ./build
+# (e.g. 'download_kubesync.sh 3.8.2 ./build
 #
 # Fails if the file already exists.
 
@@ -121,4 +121,4 @@ cp ./release.yaml "$where"
 
 popd >& /dev/null
 
-echo "release.yaml installed to ${where}release.yaml"
+echo "release.yaml downloaded to ${where}release.yaml"
