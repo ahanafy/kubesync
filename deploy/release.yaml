@@ -1,10 +1,10 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: kubesync-deployment
-  namespace: default
   labels:
     app: kubesync
+  name: kubesync-deployment
+  namespace: default
 spec:
   selector:
     matchLabels:
@@ -15,24 +15,21 @@ spec:
         app: kubesync
     spec:
       containers:
-        - name: kubesync
-          image: ghcr.io/ahanafy/kubesync/kubesync:latest
-          imagePullPolicy: Always
-          resources:
-            requests:
-              memory: "64Mi"
-              cpu: "250m"
-            limits:
-              memory: "128Mi"
-              cpu: "500m"
-          volumeMounts:
-            - name: config-vol
-              mountPath: "/config"
-              readOnly: true
+      - image: ghcr.io/ahanafy/kubesync/kubesync:latest
+        imagePullPolicy: Always
+        name: kubesync
+        resources:
+          limits:
+            cpu: 500m
+            memory: 128Mi
+          requests:
+            cpu: 250m
+            memory: 64Mi
+        volumeMounts:
+        - mountPath: /config
+          name: config-vol
+          readOnly: true
       volumes:
-        - name: config-vol
-          secret:
-            secretName: config-secret
-
----
-
+      - name: config-vol
+        secret:
+          secretName: config-secret
