@@ -1,0 +1,42 @@
+name: AutoTag
+
+on:
+  workflow_dispatch
+  # push:
+  #   branches: ["main"]
+
+jobs:
+  autotag:
+    name: autotag
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          echo 'deb [trusted=yes] https://apt.fury.io/caarlos0/ /' | sudo tee /etc/apt/sources.list.d/caarlos0.list
+          sudo apt -qq update
+          sudo apt install svu
+      - uses: actions/checkout@v2
+        with:
+          ref: ${{ github.head_ref }}
+      - id: get_next_version
+        run: |
+          echo "Current version: $(svu current)"
+          echo '::set-output name=NEW_TAG::$(svu patch)'
+      - id: create_release
+        env:
+          NEW_TAG: ${{ steps.get_next_version.outputs.NEW_TAG }}
+        run: |
+          ./scripts/manifest_updater.sh ${NEW_TAG}
+
+      - uses: stefanzweifel/git-auto-commit-action@v4
+        env:
+          NEW_TAG: ${{ steps.get_next_version.outputs.NEW_TAG }}
+        with:
+          commit_message: "Bump release to: ${NEW_TAG}"
+
+      - id: publish
+        run: |
+          echo ${{ steps.auto-commit-action.outputs.changes_detected }}
+          # echo ::set-output name=sha::$(git rev-parse HEAD)
+          # ko build -B -t ${NEW_TAG}
+          # # Use automatically generated release notes
+          # gh release create ${NEW_TAG} --generate-notes --draft
