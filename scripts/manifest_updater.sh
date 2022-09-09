@@ -21,7 +21,7 @@ resources:
 images:
  - name: ghcr.io/ahanafy/kubesync/kubesync
    newName: ghcr.io/ahanafy/kubesync/kubesync
-   newTag: "$NEW_TAG"
+   newTag: $NEW_TAG
 EOF
 
 
