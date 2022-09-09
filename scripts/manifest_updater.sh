@@ -13,7 +13,7 @@ cp deploy/release.yaml "$DIR"/release.yaml
 pushd "$DIR" || exit
 
 # create kustomization file to dynamically replace the image:tag
-cat <<EOF >./kustomization.yaml
+cat <<-EOF | envsubst - > kustomization.yaml
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
