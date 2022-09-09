@@ -2,7 +2,18 @@
 
 Find secrets and sync them with Google Secrets Manager
 
-## Build images
+## Usage
+
+```sh
+cat <<EOF >./kustomization.yaml
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - "https://github.com/ahanafy/kubesync/deploy/release.yaml"
+EOF
+```
+
+## Development
 
 ### Install ko
 
