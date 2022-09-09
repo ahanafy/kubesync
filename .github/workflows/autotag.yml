@@ -28,23 +28,23 @@ jobs:
         env:
           NEW_TAG: ${{ steps.get_next_version.outputs.NEW_TAG }}
         run: |
-          ./scripts/manifest_updater.sh ${NEW_TAG}
+          ./scripts/manifest_updater.sh $NEW_TAG
 
       - name: Commit release update
         uses: stefanzweifel/git-auto-commit-action@v4
         env:
           NEW_TAG: ${{ steps.get_next_version.outputs.NEW_TAG }}
         with:
-          commit_message: "Bump release to: ${NEW_TAG}"
+          commit_message: "Bump release to: $NEW_TAG"
 
       - uses: actions/setup-go@v2
         with:
           go-version: 1.18
       - uses: imjasonh/setup-ko@v0.6
-      
+
       - name: Publish
         id: publish
         run: |
-          ko build -B -t ${NEW_TAG}
+          ko build -B -t $NEW_TAG
           # Use automatically generated release notes
-          gh release create ${NEW_TAG} --generate-notes --draft
+          gh release create $NEW_TAG --generate-notes --draft
