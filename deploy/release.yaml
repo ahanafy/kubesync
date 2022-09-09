@@ -15,7 +15,7 @@ spec:
         app: kubesync
     spec:
       containers:
-      - image: ghcr.io/ahanafy/kubesync/kubesync:$(svu
+      - image: ghcr.io/ahanafy/kubesync/kubesync:latest
         imagePullPolicy: Always
         name: kubesync
         resources:
