@@ -13,16 +13,18 @@ jobs:
       - run: |
           echo 'deb [trusted=yes] https://apt.fury.io/caarlos0/ /' | sudo tee /etc/apt/sources.list.d/caarlos0.list
           sudo apt -qq update
-          sudo apt install svu          
+          sudo apt install svu
       - uses: actions/checkout@v3
         with:
           fetch-depth: 0
+          ref: ${{ github.head_ref }}
+
       - name: get_next_version
-        id: get_next_version      
+        id: get_next_version
         run: |
           echo "Current version: $(svu current)"
           svu_patch=$(svu patch)
-          echo ::set-output name=NEW_TAG::$svu_patch         
+          echo ::set-output name=NEW_TAG::$svu_patch
       - name: create_release
         id: create_release
         env:
@@ -45,8 +47,9 @@ jobs:
 
       - name: Publish
         id: publish
+        if: steps.auto-commit-action.outputs.changes_detected == 'true'
         env:
-          NEW_TAG: ${{ steps.get_next_version.outputs.NEW_TAG }}        
+          NEW_TAG: ${{ steps.get_next_version.outputs.NEW_TAG }}
         run: |
           ko build -B -t $NEW_TAG
           # Use automatically generated release notes
