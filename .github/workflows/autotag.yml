@@ -37,6 +37,11 @@ jobs:
         with:
           commit_message: "Bump release to: ${NEW_TAG}"
 
+      - uses: actions/setup-go@v2
+        with:
+          go-version: 1.18
+      - uses: imjasonh/setup-ko@v0.6
+      
       - name: Publish
         id: publish
         run: |
