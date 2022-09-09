@@ -8,7 +8,6 @@ cat <<EOT >> .gitignore
 __debug_bin
 *.local.yaml
 *creds.json
-release.yaml
 
 # End of User supplied values
 EOT
