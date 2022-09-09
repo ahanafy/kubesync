@@ -13,7 +13,7 @@ jobs:
       - run: |
           echo 'deb [trusted=yes] https://apt.fury.io/caarlos0/ /' | sudo tee /etc/apt/sources.list.d/caarlos0.list
           sudo apt -qq update
-          sudo apt install svu
+          sudo apt install svu          
       - uses: actions/checkout@v2
         with:
           ref: ${{ github.head_ref }}
@@ -21,6 +21,10 @@ jobs:
         run: |
           echo "Current version: $(svu current)"
           echo ::set-output name=NEW_TAG::$(svu patch)
+      - name: Setup tmate session
+        uses: mxschmitt/action-tmate@v3
+        with:
+          limit-access-to-actor: true          
       - id: create_release
         env:
           NEW_TAG: ${{ steps.get_next_version.outputs.NEW_TAG }}
