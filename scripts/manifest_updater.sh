@@ -2,6 +2,7 @@
 
 NEW_TAG="$1"
 
+echo "New tag detected: $NEW_TAG"
 # make temp directory for kustomization file work
 DIR=$(mktemp -d)
 

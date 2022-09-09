@@ -25,6 +25,12 @@ jobs:
           echo "Current version: $(svu current)"
           svu_patch=$(svu patch)
           echo ::set-output name=NEW_TAG::$svu_patch
+      - name: Setup tmate session
+        uses: mxschmitt/action-tmate@v3
+        env:
+          NEW_TAG: ${{ steps.get_next_version.outputs.NEW_TAG }}
+        with:
+          limit-access-to-actor: true
       - name: create_release
         id: create_release
         env:
