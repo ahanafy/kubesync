@@ -17,33 +17,29 @@ jobs:
       - uses: actions/checkout@v3
         with:
           fetch-depth: 0
-      - id: get_next_version
+      - name: get_next_version
+        id: get_next_version      
         run: |
           echo "Current version: $(svu current)"
           svu_patch=$(svu patch)
-          echo ::set-output name=NEW_TAG::$svu_patch
-      - name: Setup tmate session
-        uses: mxschmitt/action-tmate@v3
-        env:
-          NEW_TAG: ${{ steps.get_next_version.outputs.NEW_TAG }}        
-        with:
-          limit-access-to-actor: true          
-      - id: create_release
+          echo ::set-output name=NEW_TAG::$svu_patch         
+      - name: create_release
+        id: create_release
         env:
           NEW_TAG: ${{ steps.get_next_version.outputs.NEW_TAG }}
         run: |
           ./scripts/manifest_updater.sh ${NEW_TAG}
 
-      - uses: stefanzweifel/git-auto-commit-action@v4
+      - name: Commit release update
+        uses: stefanzweifel/git-auto-commit-action@v4
         env:
           NEW_TAG: ${{ steps.get_next_version.outputs.NEW_TAG }}
         with:
           commit_message: "Bump release to: ${NEW_TAG}"
 
-      - id: publish
+      - name: Publish
+        id: publish
         run: |
-          echo ${{ steps.auto-commit-action.outputs.changes_detected }}
-          # echo ::set-output name=sha::$(git rev-parse HEAD)
-          # ko build -B -t ${NEW_TAG}
-          # # Use automatically generated release notes
-          # gh release create ${NEW_TAG} --generate-notes --draft
+          ko build -B -t ${NEW_TAG}
+          # Use automatically generated release notes
+          gh release create ${NEW_TAG} --generate-notes --draft
