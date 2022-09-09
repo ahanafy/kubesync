@@ -15,8 +15,8 @@ jobs:
           sudo apt -qq update
           sudo apt install svu          
       - uses: actions/checkout@v2
-        with:
-          ref: ${{ github.head_ref }}
+        # with:
+        #   ref: ${{ github.head_ref }}
       - id: get_next_version
         run: |
           echo "Current version: $(svu current)"
