@@ -11,9 +11,6 @@ cp deploy/release.yaml "$DIR"/release.yaml
 # saves the current working directory in memory so it can be returned to at any time, and moves to the parent directory
 pushd "$DIR" || exit
 
-# list name of temp dir
-pwd
-
 # create kustomization file to dynamically replace the image:tag
 cat <<EOF >./kustomization.yaml
 apiVersion: kustomize.config.k8s.io/v1beta1
@@ -28,9 +25,6 @@ EOF
 
 
 kustomize build . > _newrelease.yaml
-
-# list files in temp dir
-ls -al
 
 # returns to the path at the top of the directory stack
 popd || exit

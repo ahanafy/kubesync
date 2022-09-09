@@ -29,6 +29,7 @@ jobs:
           NEW_TAG: ${{ steps.get_next_version.outputs.NEW_TAG }}
         run: |
           ./scripts/manifest_updater.sh $NEW_TAG
+          cat deploy/release.yaml | yq '.spec.template.spec.containers[] | select(.name == "kubesync") | .image '
 
       - name: Commit release update
         uses: stefanzweifel/git-auto-commit-action@v4
