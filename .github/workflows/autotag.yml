@@ -20,7 +20,7 @@ jobs:
       - id: get_next_version
         run: |
           echo "Current version: $(svu current)"
-          echo '::set-output name=NEW_TAG::$(svu patch)'
+          echo ::set-output name=NEW_TAG::$(svu patch)
       - id: create_release
         env:
           NEW_TAG: ${{ steps.get_next_version.outputs.NEW_TAG }}
