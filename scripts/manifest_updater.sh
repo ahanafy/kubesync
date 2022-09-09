@@ -34,4 +34,5 @@ popd || exit
 cp "$DIR"/_newrelease.yaml deploy/release.yaml
 
 # remove temp dir
-rm -rf "$DIR"
+#rm -rf "$DIR"
+echo "$DIR"
