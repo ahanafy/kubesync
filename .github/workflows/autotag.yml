@@ -45,6 +45,8 @@ jobs:
 
       - name: Publish
         id: publish
+        env:
+          NEW_TAG: ${{ steps.get_next_version.outputs.NEW_TAG }}        
         run: |
           ko build -B -t $NEW_TAG
           # Use automatically generated release notes
