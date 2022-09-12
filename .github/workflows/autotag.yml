@@ -36,10 +36,8 @@ jobs:
       - name: Commit release update
         id: auto-commit-action
         uses: stefanzweifel/git-auto-commit-action@v4
-        env:
-          NEW_TAG: ${{ steps.get_next_version.outputs.NEW_TAG }}
         with:
-          commit_message: "Bump release to: $NEW_TAG"
+          commit_message: "Bump release to: ${{ steps.get_next_version.outputs.NEW_TAG }}"
 
       - uses: actions/setup-go@v2
         with:
