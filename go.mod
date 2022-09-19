@@ -12,7 +12,7 @@ require (
 	google.golang.org/api v0.95.0
 	google.golang.org/genproto v0.0.0-20220902135211-223410557253
 	k8s.io/api v0.25.0
-	k8s.io/apimachinery v0.25.0
+	k8s.io/apimachinery v0.25.1
 	k8s.io/client-go v0.25.0
 )
 
