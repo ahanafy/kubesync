@@ -3,21 +3,20 @@ module github.com/ahanafy/kubesync
 go 1.18
 
 require (
-	cloud.google.com/go/secretmanager v1.6.0
+	cloud.google.com/go/secretmanager v1.7.0
 	github.com/googleapis/gax-go/v2 v2.5.1
 	github.com/spf13/viper v1.13.0
 	github.com/stretchr/testify v1.8.0
 	github.com/uptrace/opentelemetry-go-extra/otelzap v0.1.16
 	go.uber.org/zap v1.23.0
 	google.golang.org/api v0.96.0
-	google.golang.org/genproto v0.0.0-20220902135211-223410557253
+	google.golang.org/genproto v0.0.0-20220920201722-2b89144ce006
 	k8s.io/api v0.25.1
 	k8s.io/apimachinery v0.25.1
 	k8s.io/client-go v0.25.1
 )
 
 require (
-	cloud.google.com/go v0.104.0 // indirect
 	cloud.google.com/go/compute v1.9.0 // indirect
 	cloud.google.com/go/iam v0.4.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
