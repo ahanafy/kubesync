@@ -6,7 +6,7 @@ require (
 	cloud.google.com/go/secretmanager v1.8.0
 	github.com/googleapis/gax-go/v2 v2.6.0
 	github.com/spf13/viper v1.13.0
-	github.com/stretchr/testify v1.8.0
+	github.com/stretchr/testify v1.8.1
 	github.com/uptrace/opentelemetry-go-extra/otelzap v0.1.17
 	go.uber.org/zap v1.23.0
 	google.golang.org/api v0.99.0
