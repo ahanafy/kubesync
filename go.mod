@@ -3,7 +3,7 @@ module github.com/ahanafy/kubesync
 go 1.18
 
 require (
-	cloud.google.com/go/secretmanager v1.9.0
+	cloud.google.com/go/secretmanager v1.10.0
 	github.com/googleapis/gax-go/v2 v2.7.0
 	github.com/spf13/viper v1.14.0
 	github.com/stretchr/testify v1.8.1
