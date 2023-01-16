@@ -9,7 +9,7 @@ require (
 	github.com/stretchr/testify v1.8.1
 	github.com/uptrace/opentelemetry-go-extra/otelzap v0.1.17
 	go.uber.org/zap v1.24.0
-	google.golang.org/api v0.106.0
+	google.golang.org/api v0.107.0
 	google.golang.org/genproto v0.0.0-20221227171554-f9683d7f8bef
 	k8s.io/api v0.26.0
 	k8s.io/apimachinery v0.26.0
