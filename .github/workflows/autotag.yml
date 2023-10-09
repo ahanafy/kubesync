@@ -35,7 +35,7 @@ jobs:
 
       - name: Commit release update
         id: auto-commit-action
-        uses: stefanzweifel/git-auto-commit-action@v4
+        uses: stefanzweifel/git-auto-commit-action@v5
         with:
           commit_message: "Bump release to: ${{ steps.get_next_version.outputs.NEW_TAG }}"
 
